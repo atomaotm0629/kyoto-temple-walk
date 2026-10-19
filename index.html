@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>京都お寺めぐり Kyoto Temple Walk</title>
+<meta name="description" content="京都のお寺を地図と年表で案内。Kyoto temples on a map and timeline — English / 中文 / 한국어.">
+<meta name="theme-color" content="#8e2a1e">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --washi:#f6f0e4; --paper:#fffaf0; --ink:#2b2420; --sub:#6d6157; --line:#ddd0bb;
+  --shu:#b8321f; --shu-d:#8e2a1e; --kin:#c99a2e; --ai:#2f4d74;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow-x:hidden}
+body{background:var(--washi);color:var(--ink);font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","Noto Serif SC","Noto Serif KR",serif;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+header{position:sticky;top:0;z-index:1100;background:var(--shu-d);color:#fff;padding:10px 12px 10px 16px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 6px #0003}
+header h1{margin:0;flex:1;min-width:0;font-size:19px;letter-spacing:.1em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header .count{font-size:13px;background:#fff2;border:1px solid #fff6;border-radius:999px;padding:4px 10px;white-space:nowrap}
+header .count b{font-size:16px}
+header select{background:#fff2;color:#fff;border:1px solid #fff6;border-radius:8px;padding:4px 4px;font-size:13px}
+header select option{color:#000}
+#map{height:46vh;min-height:260px;border-bottom:3px solid var(--kin)}
+.bar{display:flex;gap:8px;padding:10px 16px;overflow-x:auto;background:var(--paper);border-bottom:1px solid var(--line);scrollbar-width:none}
+.bar::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;font-size:14px}
+.chip[aria-pressed="true"]{background:var(--shu);border-color:var(--shu);color:#fff}
+.chip.near{border-color:var(--ai);color:var(--ai)}
+.chip.hist{border-color:var(--kin);color:#7a5a10}
+.chip.hist[aria-pressed="true"]{background:var(--kin);color:#fff}
+
+/* 年表 */
+#hist{display:none;background:var(--ink);color:#fff;padding:12px 16px 14px}
+#hist.on{display:block}
+.hrow{display:flex;align-items:baseline;gap:12px}
+#hyear{font-size:34px;font-weight:700;letter-spacing:.04em;font-variant-numeric:tabular-nums;min-width:3.4em}
+#hera{font-size:15px;padding:2px 10px;border-radius:999px;background:#fff3}
+#hplay{margin-left:auto;border:1px solid #fff8;background:none;color:#fff;border-radius:8px;padding:6px 12px;font-size:14px;white-space:nowrap}
+#hcap{min-height:2.8em;font-size:14.5px;line-height:1.4;margin:6px 0 8px;color:#f3e6c4}
+#hcap b{color:#fff}
+.eras{position:relative;height:16px;border-radius:4px;overflow:hidden;display:flex}
+.eras div{height:100%;font-size:9.5px;line-height:16px;color:#fff;text-align:center;overflow:hidden;white-space:nowrap}
+#hslider{width:100%;margin:6px 0 0;accent-color:var(--kin)}
+.ticks{position:relative;height:10px}
+.ticks i{position:absolute;top:0;width:2px;height:8px;background:var(--kin);transform:translateX(-1px)}
+
+main{max-width:860px;margin:0 auto;padding:12px 16px 40px}
+.list{display:grid;gap:10px;grid-template-columns:1fr}
+@media(min-width:640px){.list{grid-template-columns:1fr 1fr}}
+.card{display:flex;gap:12px;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px;text-align:left;width:100%}
+.card:hover{border-color:var(--kin)}
+.card .no{flex:none;width:34px;height:34px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:14px}
+.card.done .no{background:var(--shu)}
+.card .t{flex:1;min-width:0}
+.card .t b{display:block;font-size:17px}
+.card .t small{color:var(--sub);font-size:12.5px}
+.card .yr{font-size:12.5px;color:#7a5a10;white-space:nowrap;font-variant-numeric:tabular-nums}
+.card .dist{font-size:12px;color:var(--ai);white-space:nowrap}
+.card.future{opacity:.35}
+.tag{display:inline-block;font-size:11px;border:1px solid var(--kin);color:#8a6a14;border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:2px}
+.note{color:var(--sub);font-size:12.5px;line-height:1.7;margin-top:20px}
+.guide{margin-top:24px;background:var(--paper);border:1px solid var(--line);border-top:4px solid var(--shu);border-radius:10px;padding:14px 16px}
+.guide h2{margin:0 0 6px;font-size:18px;color:var(--shu-d)}
+.guide p,.guide li{line-height:1.8;font-size:14.5px}
+.guide details{border-top:1px solid var(--line);padding:10px 0 2px}
+.guide summary{cursor:pointer;font-weight:700;font-size:15px}
+.guide ol,.guide ul{padding-left:1.4em;margin:6px 0}
+#selfurl{word-break:break-all;color:var(--ai)}
+
+/* 詳細シート */
+#sheet{position:fixed;inset:0;z-index:2000;display:none}
+#sheet.open{display:block}
+#sheet .bg{position:absolute;inset:0;background:#0006}
+#sheet .panel{position:absolute;left:0;right:0;bottom:0;max-height:88vh;overflow:auto;background:var(--paper);border-radius:16px 16px 0 0;padding:18px 18px calc(24px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px #0004;max-width:720px;margin:0 auto;animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:0}}
+.panel .close{position:absolute;right:12px;top:10px;border:0;background:none;font-size:26px;line-height:1;color:var(--sub);padding:6px}
+.panel .kana{color:var(--sub);font-size:13px;letter-spacing:.1em}
+.panel h2{margin:2px 0 6px;font-size:26px;letter-spacing:.06em;padding-right:30px}
+.panel .meta{font-size:13px;color:var(--sub);display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:12px}
+.panel p{line-height:1.85;margin:8px 0}
+.panel h3{font-size:15px;margin:16px 0 4px;color:var(--shu-d);border-left:4px solid var(--kin);padding-left:8px}
+.panel ul{margin:4px 0;padding-left:1.3em;line-height:1.8}
+.people{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.people span{background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px 11px;font-size:13.5px}
+.nt li::marker{content:"◆ ";color:var(--kin)}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.btn{border:1px solid var(--ink);background:#fff;border-radius:8px;padding:10px 14px;font-size:14px;text-decoration:none;color:var(--ink);display:inline-flex;align-items:center;gap:6px}
+.btn.main{background:var(--ink);color:#fff}
+.stampwrap{display:flex;align-items:center;gap:14px;margin-top:14px;padding:12px;border:1px dashed var(--line);border-radius:10px;background:#fff}
+.stamp{width:84px;height:84px;flex:none;border-radius:50%;border:3px solid var(--line);display:grid;place-items:center;color:#b9ab95;font-size:12.5px;text-align:center;line-height:1.25;transition:.2s}
+.stamp.on{border-color:var(--shu);color:var(--shu);transform:rotate(-12deg);font-weight:700;box-shadow:inset 0 0 0 4px #fff,inset 0 0 0 6px var(--shu)}
+.stamp.pop{animation:pop .35s ease-out}
+@keyframes pop{0%{transform:scale(1.6) rotate(-12deg);opacity:0}100%{transform:scale(1) rotate(-12deg)}}
+
+/* 地図のピン */
+.pin{width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--ink);border:2px solid #fff;box-shadow:0 2px 4px #0005;display:grid;place-items:center}
+.pin span{transform:rotate(45deg);color:#fff;font:700 12px/1 sans-serif}
+.pin.done{background:var(--shu)}
+.pin.sel{background:var(--kin)}
+.pin.born{animation:born .9s ease-out}
+@keyframes born{0%{transform:rotate(-45deg) scale(0);box-shadow:0 0 0 0 #c99a2eff}60%{transform:rotate(-45deg) scale(1.5);box-shadow:0 0 0 14px #c99a2e00}100%{transform:rotate(-45deg) scale(1)}}
+.leaflet-container{font-family:inherit}
+.leaflet-tooltip.yrtip{background:var(--ink);color:#fff;border:0;font-size:12px;padding:2px 6px}
+.leaflet-tooltip.yrtip::before{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="ttl">京都お寺めぐり</h1>
+  <div class="count"><span id="lblvisited">参拝</span> <b id="cnt">0</b>/<span id="tot">0</span></div>
+  <select id="lang" aria-label="Language">
+    <option value="ja">日本語</option><option value="en">English</option><option value="zh">中文</option><option value="ko">한국어</option>
+  </select>
+</header>
+<div id="map" role="application" aria-label="Kyoto temple map"></div>
+<section id="hist" aria-live="polite">
+  <div class="hrow"><span id="hyear">794</span><span id="hera"></span><button id="hplay"></button></div>
+  <div id="hcap"></div>
+  <div class="eras" id="eras"></div>
+  <input type="range" id="hslider" min="750" max="2000" step="1" value="750" aria-label="year">
+  <div class="ticks" id="ticks"></div>
+</section>
+<div class="bar" id="areas"></div>
+<main>
+  <div class="list" id="list"></div>
+  <section class="guide" id="guide"></section>
+  <p class="note" id="note"></p>
+  <p class="note">© OpenStreetMap contributors</p>
+</main>
+
+<div id="sheet" aria-hidden="true">
+  <div class="bg" data-close></div>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="sh-name">
+    <button class="close" data-close aria-label="close">×</button>
+    <div id="sheet-body"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="data.js"></script>
+<script>
+// ---- 言語 ----
+const LANGS = ["ja", "en", "zh", "ko"];
+function pickLang() {
+  const q = new URLSearchParams(location.search).get("lang");
+  if (LANGS.includes(q)) return q;
+  try { const s = localStorage.getItem("kyoto-temple-lang"); if (LANGS.includes(s)) return s; } catch (e) {}
+  const n = (navigator.language || "en").toLowerCase();
+  return n.startsWith("ja") ? "ja" : n.startsWith("zh") ? "zh" : n.startsWith("ko") ? "ko" : "en";
+}
+let lang = pickLang();
+const U = k => UI[lang][k] ?? UI.en[k];
+const F = (t, k) => (t[lang] && t[lang][k] != null) ? t[lang][k] : (t.en[k] ?? t.ja[k]);   // お寺の項目（ない言語は英語→日本語）
+const L_ = o => o[lang] ?? o.en;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// ---- 参拝記録（このスマホの中だけ） ----
+const KEY = "kyoto-temple-stamps";
+let stamps = {};
+try { stamps = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) {}
+const saveStamps = () => { try { localStorage.setItem(KEY, JSON.stringify(stamps)); } catch (e) {} };
+
+TEMPLES.sort((a, b) => a.y - b.y).forEach((t, i) => t.no = i + 1);   // 番号は創建の古い順
+let area = "all", here = null, selected = null;
+let histOn = false, histYear = 2000, playing = false, born = new Set();
+
+// ---- 地図 ----
+const map = L.map("map").setView([35.005, 135.765], 12);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+}).addTo(map);
+const markers = {};
+function pinIcon(t) {
+  const cls = "pin" + (stamps[t.id] ? " done" : "") + (selected === t.id ? " sel" : "") + (born.has(t.id) ? " born" : "");
+  return L.divIcon({ className: "", html: `<div class="${cls}"><span>${t.no}</span></div>`, iconSize: [30, 30], iconAnchor: [15, 30] });
+}
+TEMPLES.forEach(t => {
+  markers[t.id] = L.marker([t.lat, t.lng], { icon: pinIcon(t) }).on("click", () => openTemple(t.id));
+});
+let hereMarker = null;
+
+// ---- 一覧 ----
+const inArea = t => area === "all" || (area === "wh" ? t.wh : t.area === area);
+const shown = t => inArea(t) && (!histOn || t.y <= histYear);
+function km(a, b) {
+  const R = 6371, r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r;
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+function renderAreas() {
+  const keys = ["all", ...Object.keys(AREAS), "wh"];
+  const label = k => k === "all" ? U("all") : k === "wh" ? U("wh") : L_(AREAS[k]);
+  const bar = document.getElementById("areas");
+  bar.innerHTML = `<button class="chip hist" id="histbtn" aria-pressed="${histOn}">${U("history")}</button>`
+    + keys.map(k => `<button class="chip" aria-pressed="${k === area}" data-area="${k}">${label(k)}</button>`).join("")
+    + `<button class="chip near" id="near">${U("near")}</button>`;
+  bar.querySelectorAll("[data-area]").forEach(b => b.onclick = () => { area = b.dataset.area; renderAreas(); renderList(true); });
+  document.getElementById("near").onclick = locate;
+  document.getElementById("histbtn").onclick = () => toggleHist(!histOn);
+}
+function renderList(fit) {
+  let ts = TEMPLES.filter(inArea);
+  if (here && !histOn) ts = ts.slice().sort((a, b) => km(here, a) - km(here, b));
+  document.getElementById("list").innerHTML = ts.map(t => `
+    <button class="card${stamps[t.id] ? " done" : ""}${histOn && t.y > histYear ? " future" : ""}" data-id="${t.id}">
+      <span class="no">${stamps[t.id] ? "印" : t.no}</span>
+      <span class="t"><b>${esc(F(t, "name"))}${t.wh ? `<span class="tag">${U("wh")}</span>` : ""}</b>
+      <small>${esc(L_(AREAS[t.area]))}・${esc(F(t, "sect"))}</small></span>
+      ${here && !histOn ? `<span class="dist">${km(here, t).toFixed(1)} km</span>` : `<span class="yr">${esc(F(t, "year"))}</span>`}
+    </button>`).join("");
+  document.querySelectorAll(".card").forEach(c => c.onclick = () => openTemple(c.dataset.id));
+  TEMPLES.forEach(t => {
+    const m = markers[t.id];
+    if (shown(t)) { if (!map.hasLayer(m)) m.addTo(map); m.setIcon(pinIcon(t)); } else m.remove();
+  });
+  const vis = TEMPLES.filter(shown);
+  if (fit && vis.length) map.fitBounds(L.latLngBounds(vis.map(t => [t.lat, t.lng])), { padding: [30, 30], maxZoom: 15 });
+  document.getElementById("cnt").textContent = TEMPLES.filter(t => stamps[t.id]).length;
+  document.getElementById("tot").textContent = TEMPLES.length;
+}
+function locate() {
+  if (!navigator.geolocation) return alert(U("noGeo"));
+  navigator.geolocation.getCurrentPosition(p => {
+    here = { lat: p.coords.latitude, lng: p.coords.longitude };
+    if (hereMarker) hereMarker.remove();
+    hereMarker = L.circleMarker([here.lat, here.lng], { radius: 8, color: "#fff", weight: 3, fillColor: "#2f4d74", fillOpacity: 1 }).addTo(map).bindTooltip(U("here"));
+    if (histOn) toggleHist(false); else renderList(false);
+  }, () => alert(U("geoFail")), { enableHighAccuracy: true, timeout: 10000 });
+}
+
+// ---- 年表（歴史の移り変わり） ----
+const Y0 = 750, Y1 = 2000;
+const slider = document.getElementById("hslider");
+const pct = y => (y - Y0) / (Y1 - Y0) * 100;
+function buildEras() {
+  document.getElementById("eras").innerHTML = ERAS.map(e => {
+    const a = Math.max(e.from, Y0), b = Math.min(e.to, Y1);
+    return `<div style="width:${pct(b) - pct(a)}%;background:${e.c}" title="${esc(L_(e))}">${esc(L_(e))}</div>`;
+  }).join("");
+  document.getElementById("ticks").innerHTML = TEMPLES.map(t => `<i style="left:${pct(t.y)}%"></i>`).join("");
+}
+function setYear(y, animate) {
+  const prev = histYear;
+  histYear = Math.round(y);
+  slider.value = histYear;
+  document.getElementById("hyear").textContent = histYear;
+  const era = ERAS.find(e => histYear >= e.from && histYear < e.to) || ERAS[0];
+  const he = document.getElementById("hera");
+  he.textContent = L_(era); he.style.background = era.c;
+  // いちばん新しい出来事（お寺の創建 or 歴史の出来事）を見出しにする
+  const items = [
+    ...EVENTS.map(e => ({ y: e.y, html: esc(L_(e)) })),
+    ...TEMPLES.map(t => ({ y: t.y, html: `<b>${esc(F(t, "name"))}</b> ${lang === "en" ? "is founded" : lang === "zh" ? "创建" : lang === "ko" ? "창건" : "が建つ"}` })),
+  ].filter(i => i.y <= histYear).sort((a, b) => a.y - b.y);
+  const last = items.slice(-2);
+  document.getElementById("hcap").innerHTML = last.map(i => `${i.y}　${i.html}`).join("<br>") || "&nbsp;";
+  born = new Set(animate ? TEMPLES.filter(t => t.y > prev && t.y <= histYear).map(t => t.id) : []);
+  renderList(false);
+}
+let timer = null;
+function play(on) {
+  playing = on;
+  document.getElementById("hplay").textContent = on ? U("pause") : U("play");
+  clearInterval(timer);
+  if (!on) return;
+  if (histYear >= Y1) setYear(Y0, false);
+  timer = setInterval(() => {
+    const y = histYear;
+    // お寺が建つ時代はゆっくり、何もない時代は速く進める
+    const busy = TEMPLES.some(t => t.y > y && t.y <= y + 25) || EVENTS.some(e => e.y > y && e.y <= y + 25);
+    const next = Math.min(Y1, y + (busy ? 3 : 9));
+    setYear(next, true);
+    if (next >= Y1) play(false);
+  }, 90);
+}
+function toggleHist(on) {
+  histOn = on;
+  document.getElementById("hist").classList.toggle("on", on);
+  if (on) {
+    area = "all"; here = null;
+    if (hereMarker) { hereMarker.remove(); hereMarker = null; }
+    renderAreas();
+    map.fitBounds(L.latLngBounds(TEMPLES.map(t => [t.lat, t.lng])), { padding: [20, 20] });
+    setYear(Y0, false);
+    play(true);
+  } else {
+    play(false); born = new Set(); renderAreas(); renderList(true);
+  }
+}
+slider.oninput = () => { play(false); setYear(+slider.value, false); };
+document.getElementById("hplay").onclick = () => play(!playing);
+
+// ---- 詳細 ----
+const sheet = document.getElementById("sheet");
+function openTemple(id) {
+  const t = TEMPLES.find(x => x.id === id);
+  if (!t) return;
+  selected = id;
+  const gmap = `https://www.google.com/maps/dir/?api=1&destination=${t.lat},${t.lng}&travelmode=transit`;
+  const sub = lang === "ja" ? t.ja.kana : [F(t, "kana") !== t.ja.kana ? F(t, "kana") : "", lang !== "ja" ? t.ja.name : ""].filter(Boolean).join(" · ");
+  const formal = F(t, "formal");
+  document.getElementById("sheet-body").innerHTML = `
+    <div class="kana">${esc(sub || "")}</div>
+    <h2 id="sh-name">${esc(F(t, "name"))}</h2>
+    <div class="meta">${formal ? `<span>${U("formal")}: ${esc(formal)}</span>` : ""}<span>${U("founded")}: ${esc(F(t, "year"))}</span><span>${esc(F(t, "sect"))}</span>${t.wh ? `<span>${U("whFull")}</span>` : ""}</div>
+    <p>${esc(F(t, "text"))}</p>
+    <h3>${U("see")}</h3><ul>${F(t, "see").map(s => `<li>${esc(s)}</li>`).join("")}</ul>
+    <h3>${U("people")}</h3><div class="people">${F(t, "people").map(s => `<span>${esc(s)}</span>`).join("")}</div>
+    <h3>${U("nt")}</h3><ul class="nt">${F(t, "nt").map(s => `<li>${esc(s)}</li>`).join("")}</ul>
+    <h3>${U("access")}</h3><p>${esc(F(t, "access"))}</p>
+    <div class="stampwrap">
+      <div class="stamp${stamps[t.id] ? " on" : ""}" id="stamp">${stamps[t.id] ? `${esc(F(t, "name"))}<br><small>${stamps[t.id]}</small>` : U("notYet")}</div>
+      <div><button class="btn main" id="stampbtn">${stamps[t.id] ? U("stampOff") : U("stampOn")}</button></div>
+    </div>
+    <div class="acts">
+      <a class="btn" href="${gmap}" target="_blank" rel="noopener">${U("route")}</a>
+      <button class="btn" id="showmap">${U("showMap")}</button>
+    </div>`;
+  document.getElementById("stampbtn").onclick = () => {
+    if (stamps[t.id]) delete stamps[t.id];
+    else { const d = new Date(); stamps[t.id] = `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`; }
+    saveStamps(); openTemple(t.id); renderList(false);
+    if (stamps[t.id]) document.getElementById("stamp").classList.add("pop");
+  };
+  document.getElementById("showmap").onclick = () => { closeSheet(); map.setView([t.lat, t.lng], 16); window.scrollTo(0, 0); };
+  sheet.classList.add("open"); sheet.setAttribute("aria-hidden", "false");
+  if (markers[t.id] && map.hasLayer(markers[t.id])) { markers[t.id].setIcon(pinIcon(t)); map.setView([t.lat, t.lng], Math.max(map.getZoom(), 14)); }
+  TEMPLES.forEach(x => map.hasLayer(markers[x.id]) && markers[x.id].setIcon(pinIcon(x)));
+  if (location.hash !== "#" + id) history.replaceState(null, "", location.pathname + location.search + "#" + id);
+}
+function closeSheet() {
+  sheet.classList.remove("open"); sheet.setAttribute("aria-hidden", "true");
+  selected = null; TEMPLES.forEach(x => map.hasLayer(markers[x.id]) && markers[x.id].setIcon(pinIcon(x)));
+  history.replaceState(null, "", location.pathname + location.search);
+}
+sheet.querySelectorAll("[data-close]").forEach(e => e.onclick = closeSheet);
+addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+addEventListener("hashchange", () => openTemple(location.hash.slice(1)));
+
+// ---- 言葉の切り替え ----
+function renderGuide() {
+  const url = location.origin + location.pathname;
+  document.getElementById("guide").innerHTML = `
+    <h2>${U("gTitle")}</h2><p>${U("gIntro")}</p>
+    <details><summary>${U("gHome")}</summary><p>${U("gHomeP")}</p><ul><li>${U("gHomeI")}</li><li>${U("gHomeA")}</li></ul></details>
+    <details><summary>${U("gSns")}</summary><p>${U("gSnsP")}</p>
+      <ol><li>${U("gS1")}</li><li>${U("gS2")}<br><small>https://www.instagram.com/your_id/</small></li><li>${U("gS3")}</li></ol>
+      <p><small>${U("gWarn")}<br>${U("gBack")} <span id="selfurl">${esc(url)}</span></small></p></details>`;
+}
+function applyLang() {
+  document.documentElement.lang = lang === "zh" ? "zh-Hans" : lang;
+  document.getElementById("lang").value = lang;
+  document.getElementById("ttl").textContent = U("title");
+  document.title = U("title");
+  document.getElementById("lblvisited").textContent = U("visited");
+  document.getElementById("note").innerHTML = U("note");
+  document.getElementById("hplay").textContent = playing ? U("pause") : U("play");
+  buildEras(); renderGuide(); renderAreas(); renderList(false);
+  if (histOn) setYear(histYear, false);
+  if (selected) openTemple(selected);
+}
+document.getElementById("lang").onchange = e => {
+  lang = e.target.value;
+  try { localStorage.setItem("kyoto-temple-lang", lang); } catch (err) {}
+  applyLang();
+};
+
+applyLang();
+renderList(true);
+// NFC タグや QR で #お寺のid 付きで開かれたら、そのお寺を表示する
+if (location.hash.length > 1) openTemple(decodeURIComponent(location.hash.slice(1)));
+</script>
+</body>
+</html>
