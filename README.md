@@ -21,7 +21,8 @@
 
 ## 公開について
 
-NFC から開くには https の公開 URL が必要（GitHub Pages など）。まだ公開していない。
+公開先: **https://atomaotm0629.github.io/kyoto-temple-walk/** （リポジトリ atomaotm0629/kyoto-temple-walk、main を push すると1〜2分で反映）。
+NFC タグにはこの URL を書く（お寺ごとなら末尾に `#kinkakuji` など）。
 販売する場合の注意：
 
 - 地図は OpenStreetMap のタイルを使っている。アクセスが多くなったら、OSM の利用ルールに合わせて有料・自前のタイル（MapTiler など）に切り替える
